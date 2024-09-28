@@ -1,7 +1,3 @@
-Here's a suggested outline for your README file for the machine learning project analyzing network traffic data:
-
----
-
 # Network Traffic Analysis and Attack Prediction
 
 ## Table of Contents
@@ -81,7 +77,3 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## Acknowledgments
 - [Kaggle](https://www.kaggle.com/) for providing the dataset.
 - [NumPy](https://numpy.org/), [Pandas](https://pandas.pydata.org/), and [Matplotlib](https://matplotlib.org/) for their libraries and tools.
-
----
-
-Feel free to customize the sections as needed based on your project's specifics and any additional libraries or tools you might incorporate later on.
