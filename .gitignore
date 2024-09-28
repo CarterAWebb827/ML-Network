@@ -1,0 +1,14 @@
+# Ignore the dataset zip file
+improved-cicids2017-and-csecicids2018.zip
+
+# Ignore the extracted dataset folders
+CICIDS2017_improved/
+CSECICIDS2018_improved/
+
+# Ignore any other large data files
+*.csv
+*.json
+
+# Ignore .kaggle directory if it's in the project folder
+__pycache__/
+.kaggle/
