@@ -72,7 +72,7 @@ The dataset used in this project is the "Improved CICIDS2017 and CSECICIDS2018" 
 ```
 
 ## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE.txt) file for more details.
 
 ## Acknowledgments
 - [Kaggle](https://www.kaggle.com/) for providing the dataset.
