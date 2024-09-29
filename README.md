@@ -25,13 +25,16 @@ You will need to install the following libraries:
 - **NumPy**: For numerical computations.
 - **Pandas**: For data manipulation and analysis.
 - **Matplotlib**: For data visualization.
+- **Scikit-Learn**: For label encoder
+- **TQDM**: For progress bar
+- **PSUtil**: For getting RAM usage
 - **Kaggle**: For downloading datasets from Kaggle.
 
 ### Install Libraries
 You can install the required libraries using pip. Run the following commands:
 
 ```bash
-pip install numpy pandas matplotlib kaggle
+pip install numpy pandas matplotlib scikit-learn tqdm psutil kaggle
 ```
 
 ## Installation
