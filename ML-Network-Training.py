@@ -64,14 +64,28 @@ def downloadData():
     else:
         print(f"Dataset already exists in the {dataset2017} and {dataset2018} folders. No download needed.")
 
-def concatData():
+def concatData(mode=0):
     projectDir = os.path.dirname(os.path.abspath(__file__))
     pathToCSV2017 = os.path.join(projectDir, 'CICIDS2017_improved')
     pathToCSV2018 = os.path.join(projectDir, 'CSECICIDS2018_improved')
 
-    csv2017 = glob.glob(os.path.join(pathToCSV2017, "*.csv"))
-    csv2018 = glob.glob(os.path.join(pathToCSV2018, "*.csv"))
-    csvCombined = csv2017 + csv2018
+    # Based on the mode, decide which dataset(s) to include
+    csvCombined = []
+    if mode == 0:
+        # Load both datasets
+        csv2017 = glob.glob(os.path.join(pathToCSV2017, "*.csv"))
+        csv2018 = glob.glob(os.path.join(pathToCSV2018, "*.csv"))
+        csvCombined = csv2017 + csv2018
+    elif mode == 1:
+        # Load only CICIDS2017 dataset
+        csv2017 = glob.glob(os.path.join(pathToCSV2017, "*.csv"))
+        csvCombined = csv2017
+    elif mode == 2:
+        # Load only CSECICIDS2018 dataset
+        csv2018 = glob.glob(os.path.join(pathToCSV2018, "*.csv"))
+        csvCombined = csv2018
+    else:
+        raise ValueError("Invalid mode selected. Choose 0 (both), 1 (CICIDS2017), or 2 (CSECICIDS2018).")
 
     # Iterate over files with tqdm for progress tracking
     for file in tqdm(csvCombined, desc="Reading CSV files"):
@@ -101,13 +115,14 @@ def checkRAMLimit():
 def main():
     # downloadData()
 
-    concatData()
+    mode = int(input("Enter dataset selection (0: Both, 1: CICIDS2017, 2: CSECICIDS2018): "))
+    concatData(mode)
 
     print(dfList[0].head())
 
     # Clear large objects and force garbage collection
-    del dfList
-    gc.collect()  # Force garbage collection to free memory
+    # del dfList
+    # gc.collect()  # Force garbage collection to free memory
 
 if __name__ == "__main__":
     main()
