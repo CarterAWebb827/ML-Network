@@ -13,13 +13,12 @@ import gc
 import numpy as np                  # Library for numerical computations
 import pandas as pd                 # Library for data maniplulation and analysis
 import matplotlib.pyplot as plt     # Library for plotting data
+import matplotlib.colors as clr
 from sklearn.preprocessing import LabelEncoder
 
 ''' GLOBAL VARIABLES '''
-# RAMLIMITGB = 24.0
-# RAMLIMBYTE = RAMLIMITGB * 1024 * 1024 * 1024
-
 dfList = []
+labels = []
 
 def downloadData():
     # Ask the user for the path to their kaggle.json file
@@ -64,7 +63,7 @@ def downloadData():
     else:
         print(f"Dataset already exists in the {dataset2017} and {dataset2018} folders. No download needed.")
 
-def concatData(mode=0):
+def concatData(mode=1, chunkSize=10000, maxMemory=0.85):
     projectDir = os.path.dirname(os.path.abspath(__file__))
     pathToCSV2017 = os.path.join(projectDir, 'CICIDS2017_improved')
     pathToCSV2018 = os.path.join(projectDir, 'CSECICIDS2018_improved')
@@ -89,28 +88,84 @@ def concatData(mode=0):
 
     # Iterate over files with tqdm for progress tracking
     for file in tqdm(csvCombined, desc="Reading CSV files"):
-        # checkRAMLimit()
-
         # Read the CSV file into a DataFrame and append to the list
-        df = pd.read_csv(file)
-        dfList.append(df)
+        chunkIteration = pd.read_csv(file, chunksize=chunkSize)
+        for chunk in chunkIteration:
+            if psutil.virtual_memory().percent >= (maxMemory * 100):
+                # print("Memory limit has been reached, performing garbage collection...")
+                gc.collect()
 
-    # Optional: If you want to encode labels for each DataFrame
+                time.sleep(2)
+            
+            dfList.append(chunk)
+
+        # df = pd.read_csv(file)
+
+    # Encode labels for each DataFrame
+    aLabels = pd.concat([df['Label'] for df in dfList]).unique()
     le = LabelEncoder()
+    le.fit(aLabels)
     for idx in range(len(dfList)):
-        dfList[idx]['Label'] = le.fit_transform(dfList[idx]['Label'])
+        oLabels = dfList[idx]['Label'].unique()
+        eLabels = le.transform(dfList[idx]['Label'])
+        
+        labelMap = {original: le.transform([original])[0] for original in oLabels}
+        labels.append(labelMap)
 
-'''
-def checkRAMLimit():
-    ramInfo = psutil.virtual_memory()
-    usedRam = ramInfo.used
+        dfList[idx]['Label'] = eLabels
+
+
+def plotData(dfList, columns, xlabel, ylabel):
+    # Get a list of colors using matplotlib
+    colors = list(clr.TABLEAU_COLORS)
+    numColors = len(colors)
+
+    # Number of DataFrames and columns to plot for each DataFrame
+    numDFs = len(dfList)
+    numColumns = len(columns)
+
+    # Create a grid of subplots
+    ncols = numColumns  # Each DataFrame will have numColumns plots in a row
+    nrows = numDFs      # One row for each DataFrame
+
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(18 * ncols, 8 * nrows))
+
+    # If there's only one DataFrame, axes won't be a list, so we need to handle that case
+    if nrows == 1:
+        axes = [axes]
+
+    # Loop through the DataFrames and create subplots
+    for dfIdx, df in enumerate(dfList):
+        for colIdx, col in enumerate(columns):
+            ax = axes[dfIdx][colIdx] if nrows > 1 else axes[colIdx]  # Handle single-row or multi-row cases
+            color = colors[(dfIdx + colIdx) % numColors]  # Cycle through colors
+
+            # Plot the data
+            ax.plot(df.index, df[col], label=f"{col} (Dataset {dfIdx + 1})", color=color, linestyle='-', linewidth=1)
+            
+            '''
+            labelVal = df['Label'][dfIdx]
+
+            if labelVal != 0 and labelVal in labels[dfIdx]:
+                ax.plot(dfIdx, colIdx, 'ro', markersize=5)  # Mark the event with a red dot
+                ax.annotate(f"{labels[dfIdx][labelVal]}", 
+                            xy=(dfIdx, colIdx),
+                            xytext=(dfIdx, colIdx + 0.5), 
+                            fontsize=8,
+                            arrowprops=dict(facecolor='black', arrowstyle='->'))
+            '''
+
+            # Set labels and title
+            ax.set_title(f"{col} - Dataset {dfIdx + 1}", fontsize=12)
+            ax.set_xlabel(xlabel, fontsize=10)
+            ax.set_ylabel(ylabel, fontsize=10)
+            #ax.legend(loc="upper right")
+
+            ax.grid(True, linestyle=':', linewidth=0.7, color='grey')
     
-    # If used memory exceeds the limit, pause the execution
-    if usedRam > RAMLIMBYTE:
-        print(f"Memory limit exceeded: {usedRam / (1024**3):.2f} GB used. Waiting for memory to be available...")
-        while psutil.virtual_memory().used > RAMLIMBYTE:
-            time.sleep(5)  # Wait 5 seconds before rechecking
-'''
+    plt.subplots_adjust(hspace=0.65, wspace=0.9, top=0.95, bottom=0.05, left=0.1, right=0.9)
+
+    plt.show()
 
 def main():
     # downloadData()
@@ -118,7 +173,11 @@ def main():
     mode = int(input("Enter dataset selection (0: Both, 1: CICIDS2017, 2: CSECICIDS2018): "))
     concatData(mode)
 
-    print(dfList[0].head())
+    # print(dfList[0].head())
+    #print(labels)
+
+    columns = ['Total Fwd Packet', 'Total Bwd packets', 'Average Packet Size']
+    plotData(dfList, columns, "Time", "Number of Packets")
 
     # Clear large objects and force garbage collection
     # del dfList
