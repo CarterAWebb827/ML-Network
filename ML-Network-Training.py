@@ -1,4 +1,4 @@
-''' GENERAL LIBRARIES '''
+""" GENERAL LIBRARIES """
 import os                           # Allows the use of os commands
 import zipfile                      # Enables the use of zip
 import subprocess                   # Enables the ability of subprocessing
@@ -8,15 +8,20 @@ from tqdm import tqdm               # Tool to add progress bars
 import psutil
 import time
 import gc
+import re                           # For regular expression operations
 
-''' MACHINE LEARNING LIBRARIES'''
+""" MACHINE LEARNING LIBRARIES"""
 import numpy as np                  # Library for numerical computations
 import pandas as pd                 # Library for data maniplulation and analysis
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt     # Library for plotting data
 import matplotlib.colors as clr
 from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import StandardScaler
+from imblearn.over_sampling import RandomOverSampler
 
-''' GLOBAL VARIABLES '''
+""" GLOBAL VARIABLES """
 dfList = []
 labels = []
 
@@ -28,7 +33,7 @@ def downloadData():
     if not os.path.exists(kaggleKeyPath):
         raise FileNotFoundError(f"File not found at {kaggleKeyPath}")
 
-    # Create the .kaggle directory if it doesn't exist
+    # Create the .kaggle directory if it doesn"t exist
     kaggleDir = os.path.expanduser("~/.kaggle")
     if not os.path.exists(kaggleDir):
         os.makedirs(kaggleDir)
@@ -37,7 +42,7 @@ def downloadData():
     kaggleKeyDest = os.path.join(kaggleDir, "kaggle.json")
     shutil.copyfile(kaggleKeyPath, kaggleKeyDest)
 
-    # Set the permissions of the kaggle.json file (works on Unix-based systems; Windows doesn't need this)
+    # Set the permissions of the kaggle.json file (works on Unix-based systems; Windows doesn"t need this)
     os.chmod(kaggleKeyDest, 0o600)
 
     # Check if the datasets already exists before downloading
@@ -53,7 +58,7 @@ def downloadData():
 
         # Unzip the downloaded dataset
         zipFile = "improved-cicids2017-and-csecicids2018.zip"
-        with zipfile.ZipFile(zipFile, 'r') as zipRef:
+        with zipfile.ZipFile(zipFile, "r") as zipRef:
             print("File is being extracted")
             zipRef.extractall()
 
@@ -64,9 +69,11 @@ def downloadData():
         print(f"Dataset already exists in the {dataset2017} and {dataset2018} folders. No download needed.")
 
 def concatData(mode=1, chunkSize=10000, maxMemory=0.85):
+    global dfList
+    global labels
     projectDir = os.path.dirname(os.path.abspath(__file__))
-    pathToCSV2017 = os.path.join(projectDir, 'CICIDS2017_improved')
-    pathToCSV2018 = os.path.join(projectDir, 'CSECICIDS2018_improved')
+    pathToCSV2017 = os.path.join(projectDir, "CICIDS2017_improved")
+    pathToCSV2018 = os.path.join(projectDir, "CSECICIDS2018_improved")
 
     # Based on the mode, decide which dataset(s) to include
     csvCombined = []
@@ -89,6 +96,10 @@ def concatData(mode=1, chunkSize=10000, maxMemory=0.85):
     # Iterate over files with tqdm for progress tracking
     for file in tqdm(csvCombined, desc="Reading CSV files"):
         # Read the CSV file into a DataFrame and append to the list
+        df = pd.read_csv(file)
+        dfList.append(df)
+
+        """
         chunkIteration = pd.read_csv(file, chunksize=chunkSize)
         for chunk in chunkIteration:
             if psutil.virtual_memory().percent >= (maxMemory * 100):
@@ -98,90 +109,230 @@ def concatData(mode=1, chunkSize=10000, maxMemory=0.85):
                 time.sleep(2)
             
             dfList.append(chunk)
-
-        # df = pd.read_csv(file)
+        """
 
     # Encode labels for each DataFrame
-    aLabels = pd.concat([df['Label'] for df in dfList]).unique()
+    aLabels = pd.concat([df["Label"] for df in dfList]).unique()
     le = LabelEncoder()
     le.fit(aLabels)
     for idx in range(len(dfList)):
-        oLabels = dfList[idx]['Label'].unique()
-        eLabels = le.transform(dfList[idx]['Label'])
+        oLabels = dfList[idx]["Label"].unique()
+        eLabels = le.transform(dfList[idx]["Label"])
         
         labelMap = {original: le.transform([original])[0] for original in oLabels}
         labels.append(labelMap)
 
-        dfList[idx]['Label'] = eLabels
+        #print (labelMap)
 
+        dfList[idx]["Label"] = eLabels
 
-def plotData(dfList, columns, xlabel, ylabel):
-    # Get a list of colors using matplotlib
-    colors = list(clr.TABLEAU_COLORS)
-    numColors = len(colors)
+def plotData(columns, xlabel, ylabel, sOn, labelMap):
+    global dfList
+    numColors = 27  # Example color cycle
+    cmap = plt.colormaps.get_cmap("tab20")
+    colors = cmap(np.linspace(0, 1, numColors))
 
-    # Number of DataFrames and columns to plot for each DataFrame
-    numDFs = len(dfList)
-    numColumns = len(columns)
+    if not os.path.exists("Figures"):
+        os.makedirs("Figures")
 
-    # Create a grid of subplots
-    ncols = numColumns  # Each DataFrame will have numColumns plots in a row
-    nrows = numDFs      # One row for each DataFrame
+    if sOn:
+        if not os.path.exists("Figures/SubPlots"):
+            os.makedirs("Figures/SubPlots")
+        # Loop through each DataFrame and each column
+        for dfIdx, df in enumerate(dfList):
+            df = df.dropna()  # Removes rows with NaN values
+            for colIdx, col in enumerate(columns):
+                # Create a new figure for each dataset and column
+                fig, ax = plt.subplots(figsize=(10, 6))  # Adjust size if necessary
 
-    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(18 * ncols, 8 * nrows))
+                # Plot the data
+                ax.plot(df.index, df[col], label=f"{col} (Dataset {dfIdx + 1})", color=colors[(dfIdx + colIdx) % numColors], linestyle="-", linewidth=1)
 
-    # If there's only one DataFrame, axes won't be a list, so we need to handle that case
-    if nrows == 1:
-        axes = [axes]
+                """
+                labelVal = df["Label"][dfIdx]
 
-    # Loop through the DataFrames and create subplots
-    for dfIdx, df in enumerate(dfList):
-        for colIdx, col in enumerate(columns):
-            ax = axes[dfIdx][colIdx] if nrows > 1 else axes[colIdx]  # Handle single-row or multi-row cases
-            color = colors[(dfIdx + colIdx) % numColors]  # Cycle through colors
+                if labelVal != 0 and labelVal in labels[dfIdx]:
+                    ax.plot(dfIdx, colIdx, "ro", markersize=5)  # Mark the event with a red dot
+                    ax.annotate(f"{labels[dfIdx][labelVal]}", 
+                                xy=(dfIdx, colIdx),
+                                xytext=(dfIdx, colIdx + 0.5), 
+                                fontsize=8,
+                                arrowprops=dict(facecolor="black", arrowstyle="->"))
+                """
 
-            # Plot the data
-            ax.plot(df.index, df[col], label=f"{col} (Dataset {dfIdx + 1})", color=color, linestyle='-', linewidth=1)
-            
-            '''
-            labelVal = df['Label'][dfIdx]
+                # Set labels and title for each individual plot
+                ax.set_title(f"{col} - Dataset {dfIdx + 1}", fontsize=12)
+                ax.set_xlabel(xlabel, fontsize=10)
+                ax.set_ylabel(ylabel, fontsize=10)
+                ax.grid(True, linestyle=":", linewidth=0.7, color="grey")
 
-            if labelVal != 0 and labelVal in labels[dfIdx]:
-                ax.plot(dfIdx, colIdx, 'ro', markersize=5)  # Mark the event with a red dot
-                ax.annotate(f"{labels[dfIdx][labelVal]}", 
-                            xy=(dfIdx, colIdx),
-                            xytext=(dfIdx, colIdx + 0.5), 
-                            fontsize=8,
-                            arrowprops=dict(facecolor='black', arrowstyle='->'))
-            '''
+                # Adjust layout to avoid overlapping elements
+                plt.tight_layout()
 
-            # Set labels and title
-            ax.set_title(f"{col} - Dataset {dfIdx + 1}", fontsize=12)
-            ax.set_xlabel(xlabel, fontsize=10)
-            ax.set_ylabel(ylabel, fontsize=10)
-            #ax.legend(loc="upper right")
-
-            ax.grid(True, linestyle=':', linewidth=0.7, color='grey')
+                # Save each plot with a unique filename
+                plt.savefig(f"Figures/SubPlots/Dataset{dfIdx+1}_{col}.png")
+                plt.close(fig)  # Close the figure after saving to avoid memory buildup
     
-    plt.subplots_adjust(hspace=0.65, wspace=0.9, top=0.95, bottom=0.05, left=0.1, right=0.9)
+    if not os.path.exists("Figures/Histograms"):
+            os.makedirs("Figures/Histograms")
 
-    plt.show()
+    for dfIdx, df in enumerate(dfList):
+        # Get numerical columns excluding "Label" and "id" or any non-numeric columns
+        numericCols = df.select_dtypes(include=[np.number]).columns.tolist()
+        numericCols.remove("Label")  # Remove Label
+
+        for col in numericCols:
+            plt.figure(figsize=(15, 15))
+
+            # Initialize an empty list to hold average values for each label
+            averages = []
+
+            # Plot histogram for each label type
+            for label in df["Label"].unique():
+                # Get data for the current label
+                data = df[df["Label"] == label][col]
+                # Remove NaN and inf values from the data
+                data = data[np.isfinite(data)]
+
+                if len(data) > 0:  # Check if there is data to plot
+                    avgVal = data.mean()
+
+                    oLabel = next((orig for orig, enc in labelMap[dfIdx].items() if enc == label), str(label))
+
+                    averages.append((oLabel, avgVal))
+                    
+                    # Use colormap to get color for the label
+                    plt.hist(data, bins=30, alpha=0.5, color=colors[label], 
+                            label=f"{oLabel} (Avg: {avgVal:.2f})", edgecolor="black")
+
+            # Set titles and labels
+            plt.title(f"Histogram of {col} for DataFrame {dfIdx + 1}")
+            plt.xlabel(col)
+            plt.ylabel("Frequency")
+            plt.legend(title="Label (Average Value)")
+            
+            # Show grid
+            plt.grid(axis="y", alpha=0.75)
+
+            if not os.path.exists(f"Figures/Histograms/{dfIdx + 1}"):
+                os.makedirs(f"Figures/Histograms/{dfIdx + 1}")
+
+            sCol = re.sub(r"[^\w\s]", "", col)  # Remove non-alphanumeric characters
+            sCol = sCol.replace(" ", "_")  # Replace spaces with underscores
+
+            plt.savefig(f"Figures/Histograms/{dfIdx + 1}/Hist{dfIdx + 1}_{sCol}.png")
+
+            # Close the figure to free up memory
+            plt.close()
+
+def scaleDS(df, cToDrop, overSample=False):
+    X = df.drop(columns=cToDrop)
+    X.drop(columns="Label", inplace=True)
+    
+    # Handle NaN values and Infinite values
+    X.dropna(inplace=True)
+    X = X[np.isfinite(X).all(axis=1)]
+
+    # Check if replacement worked
+    if np.isinf(X).sum().sum() > 0:
+        print("\nWarning: Infinite values still present after replacement.\n")
+
+    y = df[df.columns[-2]].values
+
+    scaler = StandardScaler()
+    X = scaler.fit_transform(X)
+
+    if overSample:
+        ros = RandomOverSampler()
+        X, y = ros.fit_resample(X, y)
+    
+    data = np.hstack((X, np.reshape(y, (-1, 1))))
+
+    return data, X, y
 
 def main():
+    global dfList
+    global labels
     # downloadData()
 
     mode = int(input("Enter dataset selection (0: Both, 1: CICIDS2017, 2: CSECICIDS2018): "))
+    askGraph = input("Process subplot data (y/n)?: ").lower().strip() == "y"
+    askPlot = input("Process any data (y/n)?: ").lower().strip() == "y"
+
     concatData(mode)
+
+    #print(labels)
 
     # print(dfList[0].head())
     #print(labels)
+    if (askPlot):
+        columns = ["Total Fwd Packet", "Total Bwd packets", "Average Packet Size"]
+        plotData(columns, "Time", "Number of Packets", askGraph, labels)
 
-    columns = ['Total Fwd Packet', 'Total Bwd packets', 'Average Packet Size']
-    plotData(dfList, columns, "Time", "Number of Packets")
+    colToDrop = ["id", "Flow ID", "Src IP", "Dst IP", "Timestamp"]
+
+    # Prepare data for training, validation, and testing
+    train = []
+    valid = []
+    test = []
+    for df in dfList:
+        tr, va, te = np.split(df.sample(frac=1), [int(0.6 * len(df)), int(0.8 * len(df))])
+
+        train.append(tr)
+        valid.append(va)
+        test.append(te)
+
+    trScale = []
+    XTrain = []
+    yTrain = []
+
+    vaScale = []
+    XValid = []
+    yValid = []
+
+    teScale = []
+    XTest = []
+    yTest = []
+    count = 0
+    # Scale values relative to mean
+    for df in dfList:
+        # OverSample allows us to balance the amount of data if we want
+        trS, XTr, yTr = scaleDS(train[count], colToDrop, overSample=True)
+        vaS, XV, yV = scaleDS(valid[count], colToDrop, overSample=False)
+        teS, XTe, yTe = scaleDS(test[count], colToDrop, overSample=False)
+
+        trScale.append(trS)
+        XTrain.append(XTr)
+        yTrain.append(yTr)
+
+        vaScale.append(vaS)
+        XValid.append(XV)
+        yValid.append(yV)
+
+        teScale.append(teS)
+        XTest.append(XTe)
+        yTest.append(yTe)
+
+        count += 1
+
+    # K-Nearest Neighbors
+
+
+    # Naive Bayes
+
+
+    # Logistic Regression
+
+
+    # Support Vector Machines
+
+
+    # Neural Network Training
+
 
     # Clear large objects and force garbage collection
-    # del dfList
-    # gc.collect()  # Force garbage collection to free memory
+    del dfList
+    gc.collect()  # Force garbage collection to free memory
 
 if __name__ == "__main__":
     main()

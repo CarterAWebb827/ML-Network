@@ -12,3 +12,4 @@ CSECICIDS2018_improved/
 # Ignore .kaggle directory if it's in the project folder
 __pycache__/
 .kaggle/
+Figures/
