@@ -28,13 +28,14 @@ You will need to install the following libraries:
 - **Scikit-Learn**: For label encoder
 - **TQDM**: For progress bar
 - **PSUtil**: For getting RAM usage
+- **imblearn**: For over sampling help
 - **Kaggle**: For downloading datasets from Kaggle.
 
 ### Install Libraries
 You can install the required libraries using pip. Run the following commands:
 
 ```bash
-pip install numpy pandas matplotlib scikit-learn tqdm psutil kaggle
+pip install numpy pandas matplotlib scikit-learn tqdm psutil imblearn kaggle
 ```
 
 ## Installation

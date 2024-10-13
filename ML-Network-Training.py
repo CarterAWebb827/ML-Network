@@ -20,6 +20,8 @@ import matplotlib.colors as clr
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from imblearn.over_sampling import RandomOverSampler
+from sklearn.metrics import classification_report
+from sklearn.naive_bayes import GaussianNB # Naive Bayes
 
 """ GLOBAL VARIABLES """
 dfList = []
@@ -227,28 +229,61 @@ def plotData(columns, xlabel, ylabel, sOn, labelMap):
 
 def scaleDS(df, cToDrop, overSample=False):
     X = df.drop(columns=cToDrop)
-    X.drop(columns="Label", inplace=True)
+    #X.drop(columns="Label", inplace=True)
     
     # Handle NaN values and Infinite values
-    X.dropna(inplace=True)
     X = X[np.isfinite(X).all(axis=1)]
+    y = df[df.columns[-2]][X.index].values  # Align y with the index of X after dropping rows
 
-    # Check if replacement worked
+    X.dropna(inplace=True)
     if np.isinf(X).sum().sum() > 0:
         print("\nWarning: Infinite values still present after replacement.\n")
-
-    y = df[df.columns[-2]].values
 
     scaler = StandardScaler()
     X = scaler.fit_transform(X)
 
+    if isinstance(y, np.ndarray):
+        y = pd.Series(y)
+
     if overSample:
-        ros = RandomOverSampler()
-        X, y = ros.fit_resample(X, y)
+        unique = y.unique()
+        #print(f"Unique Classes in y: {unique}")
+
+        if len(unique) >= 2:
+            ros = RandomOverSampler()
+            X, y = ros.fit_resample(X, y)
     
+    if X.shape[0] != len(y):
+        print(f"Dimension mismatch: X has {X.shape[0]} rows, y has {len(y)} entries.")
+
     data = np.hstack((X, np.reshape(y, (-1, 1))))
 
     return data, X, y
+
+def nb(XSetArr, ySetArr, xTestArr, yTestArr):
+    nbModel = GaussianNB()
+
+    # Concatenate all training data
+    XTrainCom = np.concatenate(XSetArr, axis=0)  # Combine all training features
+    yTrainCom = np.concatenate(ySetArr, axis=0)  # Combine all training labels
+    
+    # Fit the model using the combined training data
+    nbModel.fit(XTrainCom, yTrainCom)
+    
+    # Predict using the test sets
+    yPred = []
+    for i in range(len(xTestArr)):
+        preds = nbModel.predict(xTestArr[i])
+        yPred.append(preds)
+    
+    # Flatten yPred if you want a single array
+    yPred = np.concatenate(yPred)
+    yTestCom = np.concatenate(yTestArr)
+
+    print("\nClassification Report:\n")
+    print(classification_report(yTestCom, yPred))
+
+    return yPred
 
 def main():
     global dfList
@@ -315,19 +350,22 @@ def main():
 
         count += 1
 
-    # K-Nearest Neighbors
-
+    '''
+    # Check the shapes of the training data
+    for i in range(len(XTrain)):
+        print(f"XTrain[{i}] shape: {XTrain[i].shape}, yTrain[{i}] shape: {yTrain[i].shape}")
+    '''
 
     # Naive Bayes
-
+    nb(XTrain, yTrain, XTest, yTest)
 
     # Logistic Regression
 
 
-    # Support Vector Machines
-
-
     # Neural Network Training
+
+
+    # K-Means Clustering with Principle Component Analysis
 
 
     # Clear large objects and force garbage collection
