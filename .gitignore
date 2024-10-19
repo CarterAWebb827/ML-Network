@@ -8,6 +8,7 @@ CSECICIDS2018_improved/
 # Ignore any other large data files
 *.csv
 *.json
+*.pkl
 
 # Ignore .kaggle directory if it's in the project folder
 __pycache__/

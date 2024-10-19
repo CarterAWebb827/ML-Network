@@ -5,12 +5,10 @@ import subprocess                   # Enables the ability of subprocessing
 import shutil                       # Utility functions for copying and archiving files
 import glob                         
 from tqdm import tqdm               # Tool to add progress bars
-import psutil
-import time
 import gc
 import re                           # For regular expression operations
 
-""" MACHINE LEARNING LIBRARIES"""
+""" MACHINE LEARNING LIBRARIES """
 import numpy as np                  # Library for numerical computations
 import pandas as pd                 # Library for data maniplulation and analysis
 import matplotlib
@@ -22,6 +20,8 @@ from sklearn.preprocessing import StandardScaler
 from imblearn.over_sampling import RandomOverSampler
 from sklearn.metrics import classification_report
 from sklearn.naive_bayes import GaussianNB # Naive Bayes
+from sklearn.linear_model import LogisticRegression # Logistic Regression
+import tensorflow as tf
 
 """ GLOBAL VARIABLES """
 dfList = []
@@ -266,10 +266,12 @@ def nb(XSetArr, ySetArr, xTestArr, yTestArr):
     # Concatenate all training data
     XTrainCom = np.concatenate(XSetArr, axis=0)  # Combine all training features
     yTrainCom = np.concatenate(ySetArr, axis=0)  # Combine all training labels
-    
+
+    print("Fitting Naive Bayes Model...")
     # Fit the model using the combined training data
     nbModel.fit(XTrainCom, yTrainCom)
     
+    print("Finished Fitting, Beginning Prediciton...")
     # Predict using the test sets
     yPred = []
     for i in range(len(xTestArr)):
@@ -283,12 +285,89 @@ def nb(XSetArr, ySetArr, xTestArr, yTestArr):
     print("\nClassification Report:\n")
     print(classification_report(yTestCom, yPred))
 
-    return yPred
+def lr(XSetArr, ySetArr, xTestArr, yTestArr):
+    lrModel = LogisticRegression()
+
+    XTrainCom = np.concatenate(XSetArr, axis=0)
+    yTrainCom = np.concatenate(ySetArr, axis=0)
+
+    print("Fitting Logistic Regression Model...")
+    lrModel.fit(XTrainCom, yTrainCom)
+
+    print("Finished Fitting, Beginning Prediciton...")
+    yPred = []
+    for i in range(len(xTestArr)):
+        preds = lrModel.predict(xTestArr[i])
+        yPred.append(preds)
+    
+    # Flatten yPred if you want a single array
+    yPred = np.concatenate(yPred)
+    yTestCom = np.concatenate(yTestArr)
+
+    print("\nClassification Report:\n")
+    print(classification_report(yTestCom, yPred))
+
+def nn(XSetArr, ySetArr):
+    # Linearlly stack layers as a model
+    nnModel = tf.keras.Sequential([
+        tf.keras.layers.Dense(32, activation='relu', input_shape=(86,)),    # First layer uses RELU and 32 nodes
+        tf.keras.layers.Dense(32, activation='relu'),                       # Next layer is the same
+        tf.keras.layers.Dense(1, activation='sigmoid')                      # Last layer uses Signmoid function
+    ])
+
+    # Compile the Neural Network with the Adam optimizer using binary cross entropy as our loss and
+    # 0.001 as the learning rate. We will also have another metric stored for us, accuracy
+    print("Compiling Neural Network...")
+    nnModel.compile(optimizer=tf.keras.optimizers.Adam(0.001), 
+                    loss='binary_crossentropy',
+                    metrics=['accuracy']
+    )
+    
+    XTrainCom = np.concatenate(XSetArr, axis=0)
+    yTrainCom = np.concatenate(ySetArr, axis=0)
+
+    print("Finished Compiling, Fitting Neural Network Model...")
+    history = nnModel.fit(
+        XTrainCom, yTrainCom,
+        epochs=10, batch_size=32,
+        validation_split=0.2, verbose=0
+    )
+
+    print("Finished Fitting, Plotting Data...")
+    plot_loss(history)
+    plot_accuracy(history)
+
+""" THE FOLLOWING TWO FUNCTIONS ARE FROM TENSORFLOW TUTORIALS """
+def plot_loss(history):
+    plt.plot(history.history['loss'], label='loss')
+    plt.plot(history.history['val_loss'], label='val_loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Binary Cross Entropy')
+    plt.legend()
+    plt.grid(True)
+    if not os.path.exists("Figures/Neural_Network"):
+        os.makedirs("Figures/Neural_Network")
+        plt.savefig("Figures/Neural_Network/Loss.png")
+    plt.show()
+
+def plot_accuracy(history):
+    plt.plot(history.history['accuracy'], label='accuracy')
+    plt.plot(history.history['val_accuracy'], label='val_accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.grid(True)
+    if not os.path.exists("Figures/Neural_Network"):
+        os.makedirs("Figures/Neural_Network")
+        plt.savefig("Figures/Neural_Network/Acc.png")
+    plt.show()
 
 def main():
     global dfList
     global labels
-    # downloadData()
+    askDownload = input("Do you need to download the datasets (y/n)?: ").lower().strip() == "y"
+    if (askDownload):
+        downloadData()
 
     mode = int(input("Enter dataset selection (0: Both, 1: CICIDS2017, 2: CSECICIDS2018): "))
     askGraph = input("Process subplot data (y/n)?: ").lower().strip() == "y"
@@ -298,7 +377,7 @@ def main():
 
     #print(labels)
 
-    # print(dfList[0].head())
+    #print(dfList[0].head())
     #print(labels)
     if (askPlot):
         columns = ["Total Fwd Packet", "Total Bwd packets", "Average Packet Size"]
@@ -357,13 +436,13 @@ def main():
     '''
 
     # Naive Bayes
-    nb(XTrain, yTrain, XTest, yTest)
+    #nb(XTrain, yTrain, XTest, yTest)
 
     # Logistic Regression
-
+    #lr(XTrain, yTrain, XTest, yTest)
 
     # Neural Network Training
-
+    nn(XTrain, yTrain)
 
     # K-Means Clustering with Principle Component Analysis
 

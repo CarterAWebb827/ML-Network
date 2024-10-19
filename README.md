@@ -29,13 +29,14 @@ You will need to install the following libraries:
 - **TQDM**: For progress bar
 - **PSUtil**: For getting RAM usage
 - **imblearn**: For over sampling help
+- **TensorFlow**: For Neural Network modelling
 - **Kaggle**: For downloading datasets from Kaggle.
 
 ### Install Libraries
 You can install the required libraries using pip. Run the following commands:
 
 ```bash
-pip install numpy pandas matplotlib scikit-learn tqdm psutil imblearn kaggle
+pip install numpy pandas matplotlib scikit-learn tqdm psutil imblearn tensorflow kaggle
 ```
 
 ## Installation
