@@ -9,6 +9,8 @@ CSECICIDS2018_improved/
 *.csv
 *.json
 *.pkl
+*.gz
+*.tex
 
 # Ignore .kaggle directory if it's in the project folder
 __pycache__/
